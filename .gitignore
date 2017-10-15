@@ -1,1 +1,4 @@
-*config.py
+config_file.py
+.idea/
+config_directory/__pycache__/
+crypto-tax-compiler/__pycache__/
