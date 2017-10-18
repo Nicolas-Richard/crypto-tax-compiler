@@ -1,11 +1,98 @@
-import os,sys
-import config
-import urllib.parse
+import psycopg2
+import requests
+import json
+import os
+import sys
+import datetime
+#sys.path.insert(0, '../config_directoy')
+import config_directory.config_file as config
+from collections import namedtuple
+from urllib.parse import urljoin
+import lxml
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
 
-print(urllib.parse)
+class HTMLTableParser:
+    def parse_url(self, url):
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'lxml')
+        return [(table, self.parse_html_table(table)) for table in soup.find_all('table')]
 
-#Access to the current path of the script
-print(os.path.abspath(os.path.dirname(sys.argv[0])))
+    def parse_html_table(self, table):
+        n_columns = 0
+        n_rows = 0
+        column_names = []
 
-print(config.crypto_tickers)
+        # Find number of rows and columns
+        # we also find the column titles if we can
+        for row in table.find_all('tr'):
 
+            # Determine the number of rows in the table
+            td_tags = row.find_all('td')
+            if len(td_tags) > 0:
+                n_rows += 1
+                if n_columns == 0:
+                    # Set the number of columns for our table
+                    n_columns = len(td_tags)
+
+            # Handle column names if we find them
+            th_tags = row.find_all('th')
+            if len(th_tags) > 0 and len(column_names) == 0:
+                for th in th_tags:
+                    column_names.append(th.get_text())
+
+        # Safeguard on Column Titles
+        if len(column_names) > 0 and len(column_names) != n_columns:
+            raise Exception("Column titles do not match the number of columns")
+
+        list_storage = []
+        row_marker = 0
+        for row in table.find_all('tr'):
+            column_marker = 0
+            columns = row.find_all('td')
+            if row.parent.name!='thead':
+                daily_values = []
+                for column in columns:
+                    daily_values.append(column.get_text())
+                    column_marker += 1
+                    if len(columns) > 0:
+                        row_marker += 1
+                daily_dict_values = dict(zip(column_names, daily_values))
+                list_storage.append(daily_dict_values)
+        return list_storage
+
+
+
+url="https://coinmarketcap.com/currencies/bitcoin/historical-data/?start=20171012&end=20171018"
+hp = HTMLTableParser()
+table = hp.parse_url(url)[0][1]
+print(table)
+
+
+## From Func 1
+#return [(table, self.parse_html_table(table)) \
+#        for table in soup.find_all('table')]
+
+
+## From Func 2
+#df = pd.DataFrame(columns=range(0, n_columns),
+#                  index=range(0, n_rows))
+#row_marker = 0
+#for row in table.find_all('tr'):
+#    column_marker = 0
+#    columns = row.find_all('td')
+#    for column in columns:
+#        df.iat[row_marker, column_marker] = column.get_text()
+#        column_marker += 1
+#    if len(columns) > 0:
+#        row_marker += 1
+
+# Convert to float if possible
+#for col in df:
+#    try:
+#        df[col] = df[col].astype(float)
+#    except ValueError:
+#        pass
+
+#return df

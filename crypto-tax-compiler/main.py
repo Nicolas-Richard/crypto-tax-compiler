@@ -1,6 +1,5 @@
 import psycopg2
 import requests
-import configparser
 import json
 import os
 import sys
@@ -19,10 +18,11 @@ class Coinmarketcap:
 
 # Defining tuple to hold data from API
 Daily_ticker_info = namedtuple('Daily_ticker_info','id, name, symbol, rank, price_usd, market_cap_usd, available_supply, total_supply, last_updated, volume_24h_usd')
+Historical_ticker_info = namedtuple('Historical_ticker_info','date, open, high, low, close, volume, market_cap')
 
 # Columns
-table_columns_name=('id, name, symbol, rank, price_usd, market_cap_usd, available_supply, total_supply, last_updated, volume_24h_usd')
-database_name = table_columns_name.replace("'", "")
+fact_price_volume_stats_daily_columns=('id, name, symbol, rank, price_usd, market_cap_usd, available_supply, total_supply, last_updated, volume_24h_usd')
+fact_price_volume_stats_daily_historical_columns=('date, open, high, low, close, volume, market_cap')
 
 # Connect to Postgres SQL
 try:
@@ -51,6 +51,10 @@ class data_fetchers:
                     del x[unwanted_key]
 
         response = response[0]
+
+        # Transform timestamp to date
+        response['last_updated']=data_transformers.unix_ts_to_date(response.get('last_updated'))
+
         return response
 
 
@@ -66,19 +70,23 @@ class data_transformers:
                 del obj[key]
         return obj
 
+    def unix_ts_to_date(unix_ts):
+        transformed_date = datetime.datetime.utcfromtimestamp(
+            int(unix_ts)
+        ).strftime('%Y-%m-%d')
+        return transformed_date
 
     # Parsing Data and storing it in a tuple
-    def dict_to_daily_ticker_tuple(api_json_fetched):
-        results=[Daily_ticker_info(**k) for k in api_json_fetched]
+    def dict_to_tuple(selected_dict, selected_tuple):
+        results=[selected_tuple(**k) for k in selected_dict]
         return results
-
 
 
 # Functions writing in SQL
 class data_writer:
     # Write in Postgres Table
     def fact_price_volume_stats_daily_writer(tuple):
-        q = cur.mogrify('SELECT * FROM fact_price_volume_stats_daily WHERE id=%s and last_update=%s', (tuple[0],tuple[8]))
+        q = cur.mogrify('SELECT * FROM fact_price_volume_stats_daily WHERE id=%s and last_updated=%s', (tuple[0],tuple[8]))
         cur.execute(q)
         rows = cur.fetchall()
 
@@ -95,14 +103,14 @@ class data_writer:
 # Script to Fetch the Data
 api_json_fetched = []
 for ticker in config.crypto_tickers_name:
-    a = api_json_fetcher(Coinmarketcap.DOMAIN_NAME, ticker,
+    a = data_fetchers.api_json_fetcher(Coinmarketcap.DOMAIN_NAME, ticker,
                          ['percent_change_1h', 'percent_change_24h', 'percent_change_7d', 'price_btc'])
-    print(type(a))
+    print(a.get('last_updated'))
     api_json_fetched.append(a)
 print(api_json_fetched)
 
 # Script to put the data into a tuple
-b = data_transformers.dict_to_daily_ticker_tuple(api_json_fetched)
+b = data_transformers.dict_to_tuple(api_json_fetched, Daily_ticker_info)
 print(b)
 
 # Script to write the data in Postgres SQL
