@@ -6,7 +6,6 @@ currency_tickers = ['USD', 'EUR']
 #[POSTGRES_CONF]
 
 hostname = 'localhost'
-username = 'y.achiakh'
-password = 'Loinloin34!!'
-database = 'crypto_db'
-table    = 'fact_price_volume_stats_daily'
+username = 'username'
+password = 'password'
+database = 'database'
