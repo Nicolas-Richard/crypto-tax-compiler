@@ -1,17 +1,9 @@
-import psycopg2
+#sys.path.insert(0, '../config_directoy')
+import requests
+from bs4 import BeautifulSoup
+from main_file import Coinmarketcap
 import requests
 import json
-import os
-import sys
-import datetime
-#sys.path.insert(0, '../config_directoy')
-import config_directory.config_file as config
-from collections import namedtuple
-from urllib.parse import urljoin
-import lxml
-import requests
-import pandas as pd
-from bs4 import BeautifulSoup
 
 class HTMLTableParser:
     def parse_url(self, url):
@@ -59,10 +51,11 @@ class HTMLTableParser:
                     if len(columns) > 0:
                         row_marker += 1
                 daily_dict_values = dict(zip(column_names, daily_values))
+                daily_dict_values['Date'] = data_transformers.unix_ts_to_date(daily_dict_values.get('Date'))
                 list_storage.append(daily_dict_values)
         return list_storage
 
-
+a = data_transformers.coinmarketcap_date_to_date()
 
 url="https://coinmarketcap.com/currencies/bitcoin/historical-data/?start=20171012&end=20171018"
 hp = HTMLTableParser()
@@ -70,29 +63,3 @@ table = hp.parse_url(url)[0][1]
 print(table)
 
 
-## From Func 1
-#return [(table, self.parse_html_table(table)) \
-#        for table in soup.find_all('table')]
-
-
-## From Func 2
-#df = pd.DataFrame(columns=range(0, n_columns),
-#                  index=range(0, n_rows))
-#row_marker = 0
-#for row in table.find_all('tr'):
-#    column_marker = 0
-#    columns = row.find_all('td')
-#    for column in columns:
-#        df.iat[row_marker, column_marker] = column.get_text()
-#        column_marker += 1
-#    if len(columns) > 0:
-#        row_marker += 1
-
-# Convert to float if possible
-#for col in df:
-#    try:
-#        df[col] = df[col].astype(float)
-#    except ValueError:
-#        pass
-
-#return df
