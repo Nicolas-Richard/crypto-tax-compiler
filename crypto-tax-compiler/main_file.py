@@ -65,8 +65,10 @@ class data_fetchers:
         response = requests.get(url)
 
         soup = BeautifulSoup(response.text, 'lxml')
-        return [(table, data_transformers.parse_html_table(table)) for table in soup.find_all('table')]
-
+        try:
+            return [(table, data_transformers.parse_html_table(table)) for table in soup.find_all('table')]
+        except Exception:
+            raise
 
 # Functions transforming fetched data
 class data_transformers:
@@ -219,25 +221,42 @@ df=data_fetchers()
 dw=data_writers()
 dt=data_transformers()
 
+# # test
+# url = "https://coinmarketcap.com/currencies/lisk/historical-data/?start=20171111&end=20171111"
+# response = requests.get(url)
+# soup = BeautifulSoup(response.text, 'lxml')
+#
+# for table in soup.find_all('table'):
+#     a=(table, data_transformers.parse_html_table(table))
+#     print(a)
+
 
 # # Fact_price_volume_stats_daily_historical
 
 # Script to fetch the data
 for ticker in config.crypto_tickers_name:
     get_date = dt.cmkp_start_date(ticker)
-    table = df.html_fetcher(ticker, get_date[0], get_date[1])
-    results = table[0][1]
 
-    # Add ticker name to the dict and transform in tuple
-    for day in results:
-        day['id'] = ticker
+    try:
+        table = df.html_fetcher(ticker, get_date[0], get_date[1])
+        results = table[0][1]
 
-    # Script to put data in a tuple
-    tuple_results = dt.dict_to_tuple(results, Historical_ticker_info)
+        # Add ticker name to the dict and transform in tuple
+        for day in results:
+            day['id'] = ticker
 
-    # Script to write the data in Postgres SQL
-    for tuple in tuple_results:
-        dw.fact_price_volume_stats_daily_historical_writer(tuple)
+        # Script to put data in a tuple
+        tuple_results = dt.dict_to_tuple(results, Historical_ticker_info)
+
+        # Script to write the data in Postgres SQL
+        for tuple in tuple_results:
+            dw.fact_price_volume_stats_daily_historical_writer(tuple)
+        break
+    except Exception as inst:
+        if inst.args[0] == "Column titles do not match the number of columns":
+            print("No data accessible on CoinMarketcap between "+get_date[0]+" and "+get_date[1])
+        else:
+            print(inst.args)
 
 # # # Fact_price_volume_stats_daily
 # # Script to Fetch the Data
