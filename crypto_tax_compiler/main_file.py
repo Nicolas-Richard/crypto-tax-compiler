@@ -7,8 +7,7 @@ import psycopg2
 import requests
 import inspect
 from bs4 import BeautifulSoup
-
-import config_directory.config_file as config
+import config_directory.config_default as config
 
 # Constants
 class Coinmarketcap:
@@ -25,14 +24,7 @@ Historical_ticker_info = namedtuple('Historical_ticker_info','date, open, high, 
 fact_price_volume_stats_daily_columns=('id, name, symbol, rank, price_usd, market_cap_usd, available_supply, total_supply, last_updated, volume_24h_usd')
 fact_price_volume_stats_daily_historical_columns=('date, open, high, low, close, volume, market cap, id')
 
-# Connect to Postgres SQL
-try:
-    conn=psycopg2.connect(host=config.hostname, user=config.username, password=config.password, dbname=config.database)
-    conn.autocommit = True
-except:
-    print("I am unable to connect to the database")
 
-cur = conn.cursor()
 
 
 # Functions fetching from API
@@ -215,12 +207,6 @@ class data_writers:
                 print('Failed to insert line')
                 pass
 
-
-# Set up shortcuts
-df=data_fetchers()
-dw=data_writers()
-dt=data_transformers()
-
 # # test
 # url = "https://coinmarketcap.com/currencies/lisk/historical-data/?start=20171111&end=20171111"
 # response = requests.get(url)
@@ -233,50 +219,71 @@ dt=data_transformers()
 
 # # Fact_price_volume_stats_daily_historical
 
-# Script to fetch the data
-for ticker in config.crypto_tickers_name:
-    get_date = dt.cmkp_start_date(ticker)
+if __name__ == '__main__':
 
-    try:
-        table = df.html_fetcher(ticker, get_date[0], get_date[1])
-        results = table[0][1]
+    # # Connect to Postgres SQL
+    # try:
+    #     conn = psycopg2.connect(host=config.hostname, user=config.username, password=config.password,
+    #                             dbname=config.database)
+    #     conn.autocommit = True
+    # except:
+    #     print("I am unable to connect to the database")
+    # 
+    # cur = conn.cursor()
 
-        # Add ticker name to the dict and transform in tuple
-        for day in results:
-            day['id'] = ticker
+    # Set up shortcuts
+    # nrichard: these are not 'shortcuts' they are instances of the class
+    # for shortcuts : df = data_fetchers
+    df = data_fetchers()
+    dw = data_writers()
+    dt = data_transformers()
 
-        # Script to put data in a tuple
-        tuple_results = dt.dict_to_tuple(results, Historical_ticker_info)
+    # Script to fetch the data
+    for ticker in config.crypto_tickers_name:
 
-        # Script to write the data in Postgres SQL
-        for tuple in tuple_results:
-            dw.fact_price_volume_stats_daily_historical_writer(tuple)
-        break
-    except Exception as inst:
-        if inst.args[0] == "Column titles do not match the number of columns":
-            print("No data accessible on CoinMarketcap between "+get_date[0]+" and "+get_date[1])
-        else:
-            print(inst.args)
+        #get_date = dt.cmkp_start_date(ticker)
+        get_date = ('20171103','20171104')
 
-# # # Fact_price_volume_stats_daily
-# # Script to Fetch the Data
-# api_json_fetched = []
-# for ticker in config.crypto_tickers_name:
-#     a = df.api_json_fetcher(ticker,
-#                          ['percent_change_1h', 'percent_change_24h', 'percent_change_7d', 'price_btc'])
-#     print(a.get('last_updated'))
-#     api_json_fetched.append(a)
-# print(api_json_fetched)
-#
-# results_temp=[]
-# for k in api_json_fetched:
-#     results_temp.append(Daily_ticker_info(**k))
-# print(results_temp)
-#
-# # Script to put the data into a tuple
-# b = dt.dict_to_tuple(api_json_fetched, Daily_ticker_info)
-# print(b)
-#
-# #Script to write the data in Postgres SQL
-# for x in b:
-#    dw.fact_price_volume_stats_daily_writer(x)
+        try:
+            table = df.html_fetcher(ticker, get_date[0], get_date[1])
+            results = table[0][1]
+
+            # Add ticker name to the dict and transform in tuple
+            for day in results:
+                day['id'] = ticker
+
+            # Script to put data in a tuple
+            tuple_results = dt.dict_to_tuple(results, Historical_ticker_info)
+
+            # Script to write the data in Postgres SQL
+            for tuple in tuple_results:
+                dw.fact_price_volume_stats_daily_historical_writer(tuple)
+            break
+        except Exception as inst:
+            if inst.args[0] == "Column titles do not match the number of columns":
+                print("No data accessible on CoinMarketcap between "+get_date[0]+" and "+get_date[1])
+            else:
+                print(inst.args)
+    
+    # # # Fact_price_volume_stats_daily
+    # # Script to Fetch the Data
+    # api_json_fetched = []
+    # for ticker in config.crypto_tickers_name:
+    #     a = df.api_json_fetcher(ticker,
+    #                          ['percent_change_1h', 'percent_change_24h', 'percent_change_7d', 'price_btc'])
+    #     print(a.get('last_updated'))
+    #     api_json_fetched.append(a)
+    # print(api_json_fetched)
+    #
+    # results_temp=[]
+    # for k in api_json_fetched:
+    #     results_temp.append(Daily_ticker_info(**k))
+    # print(results_temp)
+    #
+    # # Script to put the data into a tuple
+    # b = dt.dict_to_tuple(api_json_fetched, Daily_ticker_info)
+    # print(b)
+    #
+    # #Script to write the data in Postgres SQL
+    # for x in b:
+    #    dw.fact_price_volume_stats_daily_writer(x)
