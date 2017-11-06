@@ -64,6 +64,7 @@ class data_fetchers:
 
 # Functions transforming fetched data
 class data_transformers:
+    # TODO : c'est chelou que certaines methodes aient 'self' en 1er argument et d'autres non
     # To replace a given key in JSON filed
     def modify_key(obj):
         for key in obj.keys():
@@ -91,7 +92,7 @@ class data_transformers:
         return transformed_date
 
     # Cleaning string
-    def lower_underscore_to_string(self, string):
+    def lower_underscore_to_string(string):
         string = string.lower().replace(" ", "_")
         return string
 
@@ -148,7 +149,7 @@ class data_transformers:
             th_tags = row.find_all('th')
             if len(th_tags) > 0 and len(column_names) == 0:
                 for th in th_tags:
-                    column_name = dt.lower_underscore_to_string(th.get_text())
+                    column_name = data_transformers.lower_underscore_to_string(th.get_text())
                     column_names.append(column_name)
 
         # Safeguard on Column Titles
